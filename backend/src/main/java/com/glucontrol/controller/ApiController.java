@@ -2,6 +2,8 @@ package com.glucontrol.controller;
 
 import com.glucontrol.dto.*;
 import com.glucontrol.service.ClinicalService;
+import com.glucontrol.service.AuthService;
+import com.glucontrol.service.DoctorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -15,9 +17,10 @@ import java.util.*;
 
 @RestController @RequiredArgsConstructor
 public class ApiController {
-  private final ClinicalService service; private final DataSource dataSource;
+  private final ClinicalService service; private final AuthService authService; private final DoctorService doctorService; private final DataSource dataSource;
   @GetMapping("/api/health") public Map<String,Object> health() throws Exception { try(Connection ignored=dataSource.getConnection()){return Map.of("status","UP","database","UP","timestamp",Instant.now());} }
-  @PostMapping("/api/auth/login") public AuthDtos.LoginResponse login(@Valid @RequestBody AuthDtos.LoginRequest d){return service.login(d);}
+  @PostMapping("/api/auth/login") public AuthDtos.LoginResponse login(@Valid @RequestBody AuthDtos.LoginRequest d){return authService.login(d);}
+  @PostMapping("/api/auth/register") @ResponseStatus(HttpStatus.CREATED) public AuthDtos.LoginResponse register(@Valid @RequestBody AuthDtos.RegisterRequest d){return authService.register(d);}
   @GetMapping("/api/patients") public Page<PatientDto> patients(@RequestParam(required=false)String q,@PageableDefault(size=20,sort="id")Pageable p){return service.patientList(q,p);}
   @GetMapping("/api/patients/{id}") public PatientDto patient(@PathVariable Long id){return service.patientGet(id);}
   @PostMapping("/api/patients") @ResponseStatus(HttpStatus.CREATED) public PatientDto patientCreate(@Valid @RequestBody PatientDto d){return service.patientCreate(d);}
@@ -45,5 +48,11 @@ public class ApiController {
   @DeleteMapping("/api/reports/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) public void reportDelete(@PathVariable Long id){service.reportDelete(id);}
   @GetMapping("/api/users/{id}/settings") public SettingsDto settings(@PathVariable Long id){return service.settingsGet(id);}
   @PutMapping("/api/users/{id}/settings") public SettingsDto settingsUpdate(@PathVariable Long id,@Valid @RequestBody SettingsDto d){return service.settingsUpdate(id,d);}
-  @GetMapping("/api/doctor/dashboard") public DashboardDto dashboard(){return service.dashboard();}
+  @GetMapping("/api/doctor/dashboard") public DashboardDto dashboard(){return doctorService.dashboard();}
+  @GetMapping("/api/doctor/patients") public Page<DoctorPatientDto> doctorPatients(@RequestParam(required=false)String q,@PageableDefault(size=20,sort="id")Pageable p){return doctorService.patients(q,p);}
+  @GetMapping("/api/doctor/patients/{id}/summary") public DoctorPatientSummaryDto doctorSummary(@PathVariable Long id){return doctorService.summary(id);}
+  @GetMapping("/api/doctor/patients/{id}/measurements") public Page<GlucoseDto> doctorMeasurements(@PathVariable Long id,@PageableDefault(size=20)Pageable p){return doctorService.measurements(id,p);}
+  @GetMapping("/api/doctor/patients/{id}/meals") public Page<MealDto> doctorMeals(@PathVariable Long id,@PageableDefault(size=20)Pageable p){return doctorService.meals(id,p);}
+  @GetMapping("/api/doctor/patients/{id}/medications") public List<MedicationDto> doctorMedications(@PathVariable Long id){return doctorService.medications(id);}
+  @GetMapping("/api/doctor/patients/{id}/alerts") public Page<AlertDto> doctorAlerts(@PathVariable Long id,@PageableDefault(size=20)Pageable p){return doctorService.alerts(id,p);}
 }

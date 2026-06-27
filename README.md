@@ -9,8 +9,8 @@ Requisitos: Docker con Compose v2.
 ```bash
 cp .env.example .env
 # Cambia POSTGRES_PASSWORD en .env
-docker compose up -d --build
-docker compose ps
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml ps
 ```
 
 - Aplicación: `http://localhost:3000`
@@ -53,27 +53,29 @@ Vite proxifica `/api` a `http://localhost:8080` en desarrollo.
 4. Configura `APP_CORS_ALLOWED_ORIGINS=https://tu-dominio`.
 5. Asocia el dominio al servicio `frontend`, puerto `80`, y habilita HTTPS.
 6. Despliega y comprueba `/healthz`, `/api/health` y Swagger (puedes no exponer Swagger públicamente).
-7. Conserva el volumen `postgres_data` entre despliegues y programa backups.
+7. Conserva los volúmenes `postgres_data` y `uploads_data` entre despliegues y programa backups.
 
 No configures `localhost` ni `backend:8080` como URL del navegador: Nginx ya enruta `/api` por la red interna.
 
 ## API principal
 
-Los contratos completos están en Swagger. Recursos: autenticación, pacientes, mediciones de glucosa, comidas, medicamentos, alertas, informes, configuración y dashboard médico. Las listas históricas aceptan `page`, `size` y `sort`.
+Los contratos completos están en Swagger. El registro público usa `POST /api/auth/register`; crea usuario, paciente y preferencias, devuelve JWT e inicia sesión. El médico consulta pacientes registrados mediante `/api/doctor/patients` y `/api/doctor/patients/{id}/summary|measurements|meals|medications|alerts`.
+
+Las fotos de comida se cargan con `POST /api/uploads/meals` (`multipart/form-data`). Se aceptan JPEG, PNG y WebP hasta 5 MB; se sirven desde `/api/uploads/{archivo}` y persisten en `uploads_data`.
 
 ## Comandos útiles
 
 ```bash
-docker compose logs -f backend
-docker compose exec postgres psql -U glucontrol -d glucontrol
+docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f backend
+docker compose -f docker-compose.yml -f docker-compose.local.yml exec postgres psql -U glucontrol -d glucontrol
 docker compose build --no-cache
-docker compose down
-docker compose down -v  # elimina datos; usar solo si realmente se desea reiniciar la base
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
+docker compose -f docker-compose.yml -f docker-compose.local.yml down -v  # elimina datos e imágenes
 ```
 
 ## Pruebas
 
-Las suites se ejecutan obligatoriamente durante `docker compose build`: Vitest para los flujos React y JUnit para credenciales/JWT. La matriz de integración, seguridad y revisión visual está en [docs/03-pruebas.md](docs/03-pruebas.md).
+Las suites se ejecutan obligatoriamente durante `docker compose build`: 4 pruebas Vitest para registro/login/foto/roles y 6 pruebas JUnit para registro, archivos, credenciales y JWT. La entrega de estas mejoras está en [docs/10-mejoras-paciente-doctor-comida.md](docs/10-mejoras-paciente-doctor-comida.md).
 
 ## Troubleshooting
 
@@ -81,6 +83,7 @@ Las suites se ejecutan obligatoriamente durante `docker compose build`: Vitest p
 - Error CORS: agrega el dominio exacto, con protocolo, a `APP_CORS_ALLOWED_ORIGINS` y recrea backend.
 - Rutas React devuelven 404: accede mediante el servicio frontend; Nginx contiene el fallback SPA.
 - Cambió `VITE_API_URL`: es variable de compilación; reconstruye la imagen frontend.
+- No se guardan imágenes: confirma que `uploads_data` está montado y que backend inicia mediante `docker-entrypoint.sh`.
 - Migración fallida: no edites una migración ya aplicada; crea `V3__descripcion.sql`.
 
 ## Checklist de producción

@@ -6,6 +6,7 @@ import {
   Routes,
   useLocation,
   useNavigate,
+  useParams,
 } from "react-router-dom";
 import {
   Activity,
@@ -13,11 +14,13 @@ import {
   Apple,
   BarChart3,
   Bell,
+  Camera,
   ChevronRight,
   Clock3,
   FileText,
   HeartPulse,
   Home,
+  ImagePlus,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -27,11 +30,12 @@ import {
   ShieldCheck,
   Stethoscope,
   Syringe,
+  Trash2,
   User,
   Users,
   X,
 } from "lucide-react";
-import { api, patientId } from "./api";
+import { api, patientId, upload } from "./api";
 
 const ctxLabels = {
   FASTING: "En ayunas",
@@ -67,6 +71,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login onLogin={save} />} />
+      <Route path="/register" element={<Register onRegister={save} />} />
       <Route
         path="/doctor/*"
         element={
@@ -146,6 +151,9 @@ function Login({ onLogin }) {
             {busy ? "Ingresando…" : "Iniciar sesión"}
           </button>
         </form>
+        <p className="auth-switch">
+          ¿No tienes cuenta? <NavLink to="/register">Regístrate</NavLink>
+        </p>
         <div className="divider">
           <span>o usa una cuenta demo</span>
         </div>
@@ -176,6 +184,67 @@ function Login({ onLogin }) {
     </main>
   );
 }
+
+function Register({ onRegister }) {
+  const nav = useNavigate();
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    birthDate: "",
+    phone: "",
+    diabetesType: "",
+  });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const change = (field) => (event) => setForm({ ...form, [field]: event.target.value });
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const session = await api("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ ...form, birthDate: form.birthDate || null }),
+      });
+      onRegister(session);
+      nav("/");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <main className="login-page register-page">
+      <section className="login-card register-card">
+        <Brand />
+        <div className="login-copy">
+          <h1>Crea tu cuenta</h1>
+          <p>Empieza a registrar tu salud y comparte resultados con tu médico.</p>
+        </div>
+        <form onSubmit={submit} className="stack">
+          <div className="two-cols">
+            <label>Nombres<input value={form.firstName} onChange={change("firstName")} required /></label>
+            <label>Apellidos<input value={form.lastName} onChange={change("lastName")} required /></label>
+          </div>
+          <label>Correo electrónico<input value={form.email} onChange={change("email")} type="email" required /></label>
+          <label>Contraseña<input value={form.password} onChange={change("password")} type="password" minLength="8" required /><small>Mínimo 8 caracteres</small></label>
+          <div className="two-cols">
+            <label>Fecha de nacimiento<input value={form.birthDate} onChange={change("birthDate")} type="date" /></label>
+            <label>Teléfono (opcional)<input value={form.phone} onChange={change("phone")} type="tel" /></label>
+          </div>
+          <label>Tipo de diabetes (opcional)<select value={form.diabetesType} onChange={change("diabetesType")}><option value="">Por definir</option><option value="Tipo 1">Tipo 1</option><option value="Tipo 2">Tipo 2</option><option value="Gestacional">Gestacional</option></select></label>
+          {error && <ErrorBox message={error} />}
+          <button className="primary" disabled={busy}>{busy ? "Creando cuenta…" : "Crear mi cuenta"}</button>
+        </form>
+        <p className="auth-switch">¿Ya tienes cuenta? <NavLink to="/login">Inicia sesión</NavLink></p>
+        <p className="privacy"><ShieldCheck size={15} /> Tus datos se almacenan de forma segura</p>
+      </section>
+    </main>
+  );
+}
 function Brand() {
   return (
     <div className="brand">
@@ -193,12 +262,39 @@ const patientNav = [
   ["/medications", Pill, "Medicinas"],
   ["/history", Clock3, "Historial"],
 ];
+const patientDesktopNav = [
+  ["/", Home, "Resumen"],
+  ["/glucose", Activity, "Glucosa"],
+  ["/meals", Apple, "Alimentación"],
+  ["/medications", Pill, "Medicamentos"],
+  ["/history", Clock3, "Historial"],
+  ["/alerts", Bell, "Alertas"],
+  ["/reports", FileText, "Reportes"],
+  ["/profile", User, "Mi perfil"],
+];
+function PatientDesktopSidebar({ session, logout }) {
+  const initials = session.fullName.split(" ").map((part) => part[0]).slice(0, 2).join("");
+  return (
+    <aside className="patient-desktop-sidebar">
+      <Brand />
+      <div className="patient-desktop-profile">
+        <div className="avatar">{initials}</div>
+        <div><strong>{session.fullName}</strong><small>Cuenta paciente</small></div>
+      </div>
+      <nav>{patientDesktopNav.map(([to, Icon, label]) => (
+        <NavLink key={to} to={to} end={to === "/"}><Icon size={19} /><span>{label}</span></NavLink>
+      ))}</nav>
+      <button className="logout" onClick={logout}><LogOut size={18} />Cerrar sesión</button>
+    </aside>
+  );
+}
 function PatientLayout({ session, logout }) {
   const [menu, setMenu] = useState(false);
   const loc = useLocation();
   useEffect(() => setMenu(false), [loc.pathname]);
   return (
     <div className="patient-shell">
+      <PatientDesktopSidebar session={session} logout={logout} />
       <header className="mobile-top">
         <Brand />
         <button
@@ -321,7 +417,7 @@ function Dashboard({ session }) {
   const m = useLoad(() => api(`/patients/${patientId()}/medications`), []);
   const last = g.data?.content?.[0];
   return (
-    <>
+    <div className="patient-page dashboard-page">
       <Header
         title={`Hola, ${session.fullName.split(" ")[0]}`}
         subtitle="Así va tu salud hoy"
@@ -333,8 +429,8 @@ function Dashboard({ session }) {
             <strong>
               {last?.valueMgDl || "—"} <span>mg/dL</span>
             </strong>
-            <p className="good">
-              <ShieldCheck size={16} /> Dentro de tu rango objetivo
+            <p className={last ? "good" : "reading-empty"}>
+              <ShieldCheck size={16} /> {last ? (last.rangeStatus === "IN_RANGE" ? "Dentro de tu rango objetivo" : "Lectura fuera del rango objetivo") : "Aún no hay mediciones"}
             </p>
           </div>
           <span className="pulse">
@@ -347,19 +443,19 @@ function Dashboard({ session }) {
         <div className="quick-grid">
           <article>
             <span className="stat-icon pink">
-              <HeartPulse />
+              <Activity />
             </span>
-            <small>Presión</small>
-            <strong>120/80</strong>
-            <em>Normal</em>
+            <small>Mediciones</small>
+            <strong>{g.data?.totalElements || 0}</strong>
+            <em>Registros totales</em>
           </article>
           <article>
             <span className="stat-icon green">
-              <Syringe />
+              <Pill />
             </span>
-            <small>Adherencia</small>
-            <strong>92%</strong>
-            <em>Esta semana</em>
+            <small>Medicamentos</small>
+            <strong>{m.data?.filter((item) => item.active).length || 0}</strong>
+            <em>Tratamientos activos</em>
           </article>
         </div>
         <SectionTitle title="Próximos medicamentos" to="/medications" />
@@ -389,7 +485,7 @@ function Dashboard({ session }) {
           <Activity />
         </article>
       </PageState>
-    </>
+    </div>
   );
 }
 function SectionTitle({ title, to }) {
@@ -525,28 +621,46 @@ function Glucose() {
 function Meals() {
   const data = useLoad(() => api(`/patients/${patientId()}/meals?size=20`), []);
   const [open, setOpen] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imageError, setImageError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const imagePreview = useMemo(() => imageFile ? URL.createObjectURL(imageFile) : "", [imageFile]);
+  useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
   const [form, setForm] = useState({
     name: "",
     mealType: "LUNCH",
     carbohydratesGrams: 30,
     calories: 400,
   });
+  const chooseImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setImageError("Selecciona un archivo de imagen");
+    if (file.size > 5 * 1024 * 1024) return setImageError("La imagen supera el máximo de 5 MB");
+    setImageError("");
+    setImageFile(file);
+  };
   const save = async (e) => {
     e.preventDefault();
-    await api("/meals", {
-      method: "POST",
-      body: JSON.stringify({
-        ...form,
-        patientId: patientId(),
-        eatenAt: new Date().toISOString(),
-        photoUrl: null,
-      }),
-    });
-    setOpen(false);
-    data.reload();
+    setSaving(true);
+    setImageError("");
+    try {
+      const photo = imageFile ? await upload("/uploads/meals", imageFile) : null;
+      await api("/meals", {
+        method: "POST",
+        body: JSON.stringify({ ...form, patientId: patientId(), eatenAt: new Date().toISOString(), photoUrl: photo?.url || null }),
+      });
+      setOpen(false);
+      setImageFile(null);
+      data.reload();
+    } catch (requestError) {
+      setImageError(requestError.message);
+    } finally {
+      setSaving(false);
+    }
   };
   return (
-    <>
+    <div className="patient-page">
       <Header
         title="Alimentación"
         subtitle="Registra lo que comes y cuida tu equilibrio"
@@ -605,7 +719,19 @@ function Meals() {
               />
             </label>
           </div>
-          <button className="primary">Guardar alimento</button>
+          <div className="photo-upload">
+            <strong>Foto del plato</strong>
+            <p>Opcional · JPEG, PNG o WebP · máximo 5 MB</p>
+            <div className="photo-actions">
+              <label className="secondary upload-button" htmlFor="meal-camera"><Camera size={18} /> Abrir cámara</label>
+              <input id="meal-camera" className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={chooseImage} />
+              <label className="secondary upload-button" htmlFor="meal-file"><ImagePlus size={18} /> Subir imagen</label>
+              <input id="meal-file" className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseImage} />
+            </div>
+            {imagePreview && <div className="photo-preview"><img src={imagePreview} alt="Vista previa del plato" /><button type="button" onClick={() => setImageFile(null)} aria-label="Eliminar imagen"><Trash2 size={18} /></button></div>}
+            {imageError && <ErrorBox message={imageError} />}
+          </div>
+          <button className="primary" disabled={saving}>{saving ? "Guardando…" : "Guardar alimento"}</button>
         </form>
       )}
       <PageState loading={data.loading} error={data.error}>
@@ -621,9 +747,7 @@ function Meals() {
         <div className="meal-list">
           {data.data?.content?.map((x) => (
             <article key={x.id}>
-              <div className="food-thumb">
-                <Apple />
-              </div>
+              <div className="food-thumb">{x.photoUrl ? <img src={x.photoUrl} alt={x.name} /> : <Apple />}</div>
               <div>
                 <em>{mealLabels[x.mealType]}</em>
                 <h3>{x.name}</h3>
@@ -636,7 +760,7 @@ function Meals() {
           ))}
         </div>
       </PageState>
-    </>
+    </div>
   );
 }
 
@@ -1022,6 +1146,7 @@ function DoctorLayout({ session, logout }) {
         <Routes>
           <Route index element={<DoctorDashboard />} />
           <Route path="patients" element={<DoctorPatients />} />
+          <Route path="patients/:patientId" element={<DoctorPatientDetail />} />
           <Route path="alerts" element={<DoctorAlerts />} />
           <Route path="reports" element={<DoctorReports />} />
           <Route path="settings" element={<DoctorSettings />} />
@@ -1040,9 +1165,6 @@ function DoctorDashboard() {
           <h1>Buenos días, doctora</h1>
           <p>Este es el estado de su clínica hoy.</p>
         </div>
-        <button className="primary">
-          <Plus /> Nuevo paciente
-        </button>
       </div>
       <div className="kpi-grid">
         <Kpi
@@ -1059,14 +1181,14 @@ function DoctorDashboard() {
         />
         <Kpi
           icon={<Clock3 />}
-          label="Seguimientos"
-          value={d.data?.pendingFollowUps}
+          label="Alertas pendientes"
+          value={d.data?.pendingAlerts}
         />
         <Kpi
           icon={<Activity />}
-          label="HbA1c promedio"
-          value={`${d.data?.averageHba1c}%`}
-          trend="Estable"
+          label="Glucosa promedio"
+          value={d.data?.averageGlucose ? `${d.data.averageGlucose} mg/dL` : "—"}
+          trend="Datos registrados"
         />
       </div>
       <div className="doctor-grid">
@@ -1076,29 +1198,21 @@ function DoctorDashboard() {
             <em>Últimos 7 días</em>
           </div>
           <div className="desktop-chart">
-            {[67, 74, 70, 82, 76, 88, 84, 92, 78, 86, 81, 94].map((v, i) => (
-              <i key={i} style={{ height: `${v * 1.8}px` }} />
+            {(d.data?.patients || []).map((patient) => (
+              <i key={patient.id} title={patient.fullName} style={{ height: `${Math.max(24, Math.min(180, patient.lastGlucose || 24))}px` }} />
             ))}
           </div>
         </article>
         <article className="priority-card">
           <SectionTitle title="Alertas de prioridad" to="/doctor/alerts" />
-          <div className="priority-item">
-            <span className="red-dot" />
-            <div>
-              <strong>María Valenzuela</strong>
-              <p>Hiperglucemia · 248 mg/dL</p>
-            </div>
-            <time>12 min</time>
-          </div>
-          <div className="priority-item">
-            <span className="amber-dot" />
-            <div>
-              <strong>Javier Mendoza</strong>
-              <p>Tendencia de glucosa al alza</p>
-            </div>
-            <time>1 d</time>
-          </div>
+          {(d.data?.patients || []).filter((patient) => patient.status !== "ESTABLE").slice(0, 4).map((patient) => (
+            <NavLink to={`/doctor/patients/${patient.id}`} className="priority-item" key={patient.id}>
+              <span className={patient.status === "ATENCION" ? "red-dot" : "amber-dot"} />
+              <div><strong>{patient.fullName}</strong><p>{patient.lastGlucose ? `${patient.lastGlucose} mg/dL` : "Sin mediciones"}</p></div>
+              <ChevronRight size={16} />
+            </NavLink>
+          ))}
+          {!d.data?.patients?.some((patient) => patient.status !== "ESTABLE") && <Empty icon={<ShieldCheck />} text="Sin pacientes que requieran atención" />}
         </article>
       </div>
       <DoctorTable rows={d.data?.patients || []} />
@@ -1120,15 +1234,17 @@ function Kpi({ icon, label, value, trend, red }) {
 function DoctorTable({ rows }) {
   return (
     <article className="table-card">
-      <SectionTitle title="Pacientes recientes" to="/doctor/patients" />
+      <SectionTitle title="Pacientes registrados" to="/doctor/patients" />
+      {!rows.length ? <Empty icon={<Users />} text="Aún no hay pacientes registrados" /> :
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Paciente</th>
-              <th>Diagnóstico</th>
+              <th>Edad</th>
               <th>Última glucosa</th>
               <th>Estado</th>
+              <th>Último registro</th>
               <th />
             </tr>
           </thead>
@@ -1137,15 +1253,15 @@ function DoctorTable({ rows }) {
               <tr key={r.id}>
                 <td>
                   <span className="table-avatar">
-                    {r.name
+                    {r.fullName
                       .split(" ")
                       .map((x) => x[0])
                       .slice(0, 2)}
                   </span>
-                  <strong>{r.name}</strong>
+                  <div><strong>{r.fullName}</strong><small>{r.email}</small></div>
                 </td>
-                <td>{r.diabetesType}</td>
-                <td>{r.lastGlucose || "—"} mg/dL</td>
+                <td>{r.age ?? "—"}</td>
+                <td>{r.lastGlucose ? `${r.lastGlucose} mg/dL` : "Sin datos"}</td>
                 <td>
                   <em
                     className={`status ${r.status === "ESTABLE" ? "ok" : "attention"}`}
@@ -1153,22 +1269,21 @@ function DoctorTable({ rows }) {
                     {r.status}
                   </em>
                 </td>
-                <td>
-                  <ChevronRight />
-                </td>
+                <td>{r.lastClinicalAt ? fmtDate(r.lastClinicalAt) : "Sin actividad"}</td>
+                <td><NavLink className="row-action" to={`/doctor/patients/${r.id}`} aria-label={`Ver resultados de ${r.fullName}`}><ChevronRight /></NavLink></td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
     </article>
   );
 }
 function DoctorPatients() {
-  const p = useLoad(() => api("/patients?size=30"), []);
+  const p = useLoad(() => api("/doctor/patients?size=100"), []);
   const [q, setQ] = useState("");
   const rows = (p.data?.content || []).filter((x) =>
-    x.fullName.toLowerCase().includes(q.toLowerCase()),
+    `${x.fullName} ${x.email}`.toLowerCase().includes(q.toLowerCase()),
   );
   return (
     <>
@@ -1178,9 +1293,6 @@ function DoctorPatients() {
           <h1>Pacientes</h1>
           <p>Busca y revisa su estado de salud.</p>
         </div>
-        <button className="primary">
-          <Plus /> Añadir paciente
-        </button>
       </div>
       <input
         className="search"
@@ -1189,17 +1301,49 @@ function DoctorPatients() {
         onChange={(e) => setQ(e.target.value)}
       />
       <PageState loading={p.loading} error={p.error}>
-        <DoctorTable
-          rows={rows.map((x) => ({
-            id: x.id,
-            name: x.fullName,
-            diabetesType: x.diabetesType,
-            lastGlucose: 105,
-            status: "ESTABLE",
-          }))}
-        />
+        <DoctorTable rows={rows} />
       </PageState>
     </>
+  );
+}
+function DoctorPatientDetail() {
+  const { patientId: selectedPatientId } = useParams();
+  const detail = useLoad(async () => {
+    const [summary, measurements, mealsData, medicationsData, alertsData] = await Promise.all([
+      api(`/doctor/patients/${selectedPatientId}/summary`),
+      api(`/doctor/patients/${selectedPatientId}/measurements?size=30`),
+      api(`/doctor/patients/${selectedPatientId}/meals?size=20`),
+      api(`/doctor/patients/${selectedPatientId}/medications`),
+      api(`/doctor/patients/${selectedPatientId}/alerts?size=20`),
+    ]);
+    return { summary, measurements, meals: mealsData, medications: medicationsData, alerts: alertsData };
+  }, [selectedPatientId]);
+  return (
+    <PageState loading={detail.loading} error={detail.error}>
+      <div className="desktop-title doctor-detail-title">
+        <div><NavLink className="back-link" to="/doctor/patients">← Volver a pacientes</NavLink><p className="eyebrow">Ficha clínica</p><h1>{detail.data?.summary.patient.fullName}</h1><p>{detail.data?.summary.patient.email} · {detail.data?.summary.patient.diabetesType || "Diagnóstico por definir"}</p></div>
+      </div>
+      <div className="kpi-grid doctor-detail-kpis">
+        <Kpi icon={<Activity />} label="Glucosa promedio" value={detail.data?.summary.averageGlucose ? `${detail.data.summary.averageGlucose} mg/dL` : "—"} />
+        <Kpi icon={<ShieldCheck />} label="Lecturas en rango" value={detail.data?.summary.readingsInRangePercent != null ? `${detail.data.summary.readingsInRangePercent}%` : "—"} />
+        <Kpi icon={<Pill />} label="Medicamentos activos" value={detail.data?.summary.activeMedications} />
+        <Kpi icon={<Bell />} label="Alertas pendientes" value={detail.data?.summary.pendingAlerts} red={detail.data?.summary.pendingAlerts > 0} />
+      </div>
+      <div className="doctor-detail-grid">
+        <article className="table-card"><SectionTitle title="Historial de glucosa" />
+          {(detail.data?.measurements.content || []).length ? <div className="clinical-list">{detail.data.measurements.content.map((item) => <div className="list-row reading" key={item.id}><span className={`dot ${item.rangeStatus.toLowerCase()}`} /><div><strong>{item.valueMgDl} <small>mg/dL</small></strong><small>{ctxLabels[item.context]} · {fmtDate(item.measuredAt)}</small></div><em className={item.rangeStatus === "IN_RANGE" ? "tag good-tag" : "tag warn-tag"}>{item.rangeStatus === "IN_RANGE" ? "En rango" : "Revisar"}</em></div>)}</div> : <Empty icon={<Activity />} text="Sin mediciones registradas" />}
+        </article>
+        <article className="table-card"><SectionTitle title="Comidas" />
+          {(detail.data?.meals.content || []).length ? <div className="clinical-list">{detail.data.meals.content.map((item) => <div className="list-row" key={item.id}><div className="doctor-meal-thumb">{item.photoUrl ? <img src={item.photoUrl} alt="" /> : <Apple />}</div><div><strong>{item.name}</strong><small>{mealLabels[item.mealType]} · {fmtDate(item.eatenAt)}</small></div></div>)}</div> : <Empty icon={<Apple />} text="Sin comidas registradas" />}
+        </article>
+        <article className="table-card"><SectionTitle title="Medicamentos" />
+          {detail.data?.medications.length ? <div className="clinical-list">{detail.data.medications.map((item) => <div className="list-row" key={item.id}><span className="med-icon"><Pill /></span><div><strong>{item.name}</strong><small>{item.dose} · {item.frequency}</small></div><em className="tag good-tag">{item.active ? "Activo" : "Finalizado"}</em></div>)}</div> : <Empty icon={<Pill />} text="Sin medicamentos registrados" />}
+        </article>
+        <article className="table-card"><SectionTitle title="Alertas" />
+          {(detail.data?.alerts.content || []).length ? <div className="clinical-list">{detail.data.alerts.content.map((item) => <div className="list-row" key={item.id}><span className="med-icon"><Bell /></span><div><strong>{item.title}</strong><small>{item.message}</small></div><em className={item.severity === "CRITICAL" ? "tag warn-tag" : "tag good-tag"}>{item.severity}</em></div>)}</div> : <Empty icon={<Bell />} text="Sin alertas registradas" />}
+        </article>
+      </div>
+    </PageState>
   );
 }
 function DoctorAlerts() {
