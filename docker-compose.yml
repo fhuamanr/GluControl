@@ -49,7 +49,7 @@ services:
         VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
     environment:
-      SERVICE_FQDN_FRONTEND_80: ${SERVICE_FQDN_FRONTEND_80:-https://glucontrol.fiercetyke.com}
+      SERVICE_FQDN_FRONTEND_80: ${SERVICE_FQDN_FRONTEND_80:-http://glucontrol.fiercetyke.com}
     expose:
       - "80"
     depends_on:
