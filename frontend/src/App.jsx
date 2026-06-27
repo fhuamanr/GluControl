@@ -619,6 +619,7 @@ function Glucose() {
 }
 
 function Meals() {
+  const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
   const data = useLoad(() => api(`/patients/${patientId()}/meals?size=20`), []);
   const [open, setOpen] = useState(false);
   const [imageFile, setImageFile] = useState(null);
@@ -636,16 +637,30 @@ function Meals() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) return setImageError("Selecciona un archivo de imagen");
-    if (file.size > 5 * 1024 * 1024) return setImageError("La imagen supera el máximo de 5 MB");
+    if (file.size > MAX_IMAGE_BYTES) return setImageError("La imagen es demasiado pesada. Usa una imagen menor a 10 MB.");
     setImageError("");
     setImageFile(file);
   };
   const save = async (e) => {
     e.preventDefault();
+    if (imageFile?.size > MAX_IMAGE_BYTES) {
+      setImageError("La imagen es demasiado pesada. Usa una imagen menor a 10 MB.");
+      return;
+    }
     setSaving(true);
     setImageError("");
     try {
-      const photo = imageFile ? await upload("/uploads/meals", imageFile) : null;
+      let photo = null;
+      if (imageFile) {
+        try {
+          photo = await upload("/uploads/meals", imageFile);
+        } catch (uploadError) {
+          setImageError(uploadError.status === 413
+            ? "La imagen es demasiado pesada. Usa una imagen menor a 10 MB."
+            : "No se pudo subir la imagen. Verifica que pese menos de 10 MB e inténtalo nuevamente.");
+          return;
+        }
+      }
       await api("/meals", {
         method: "POST",
         body: JSON.stringify({ ...form, patientId: patientId(), eatenAt: new Date().toISOString(), photoUrl: photo?.url || null }),
@@ -721,7 +736,7 @@ function Meals() {
           </div>
           <div className="photo-upload">
             <strong>Foto del plato</strong>
-            <p>Opcional · JPEG, PNG o WebP · máximo 5 MB</p>
+            <p>Opcional · JPEG, PNG o WebP · máximo 10 MB</p>
             <div className="photo-actions">
               <label className="secondary upload-button" htmlFor="meal-camera"><Camera size={18} /> Abrir cámara</label>
               <input id="meal-camera" className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={chooseImage} />

@@ -61,7 +61,7 @@ No configures `localhost` ni `backend:8080` como URL del navegador: Nginx ya enr
 
 Los contratos completos están en Swagger. El registro público usa `POST /api/auth/register`; crea usuario, paciente y preferencias, devuelve JWT e inicia sesión. El médico consulta pacientes registrados mediante `/api/doctor/patients` y `/api/doctor/patients/{id}/summary|measurements|meals|medications|alerts`.
 
-Las fotos de comida se cargan con `POST /api/uploads/meals` (`multipart/form-data`). Se aceptan JPEG, PNG y WebP hasta 5 MB; se sirven desde `/api/uploads/{archivo}` y persisten en `uploads_data`.
+Las fotos de comida se cargan con `POST /api/uploads/meals` (`multipart/form-data`). Se aceptan JPEG, PNG y WebP hasta 10 MB; se sirven desde `/api/uploads/{archivo}` y persisten en `uploads_data`.
 
 ## Comandos útiles
 
@@ -75,7 +75,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml down -v  # elim
 
 ## Pruebas
 
-Las suites se ejecutan obligatoriamente durante `docker compose build`: 4 pruebas Vitest para registro/login/foto/roles y 6 pruebas JUnit para registro, archivos, credenciales y JWT. La entrega de estas mejoras está en [docs/10-mejoras-paciente-doctor-comida.md](docs/10-mejoras-paciente-doctor-comida.md).
+Las suites se ejecutan obligatoriamente durante `docker compose build`: 7 pruebas Vitest para registro/login/foto/roles, límite preventivo, respuesta 413 y recuperación ante errores; además de 7 pruebas JUnit para registro, límites/formatos de archivos, credenciales y JWT. La entrega de estas mejoras está en [docs/10-mejoras-paciente-doctor-comida.md](docs/10-mejoras-paciente-doctor-comida.md).
 
 ## Troubleshooting
 

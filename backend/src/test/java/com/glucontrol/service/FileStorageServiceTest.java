@@ -22,5 +22,10 @@ class FileStorageServiceTest {
     assertThatThrownBy(()->storage.storeMealImage(new MockMultipartFile("file","nota.pdf","application/pdf",new byte[]{1})))
       .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Formato no permitido");
   }
-}
 
+  @Test void rejectsImageOverConfiguredLimit() throws Exception {
+    FileStorageService storage=new FileStorageService(directory.toString(),1);storage.init();
+    assertThatThrownBy(()->storage.storeMealImage(new MockMultipartFile("file","plato.jpg","image/jpeg",new byte[]{1,2})))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("10 MB");
+  }
+}

@@ -30,7 +30,7 @@ public class FileStorageService {
 
   public String storeMealImage(MultipartFile file) {
     if (file == null || file.isEmpty()) throw new IllegalArgumentException("Selecciona una imagen");
-    if (file.getSize() > maxBytes) throw new IllegalArgumentException("La imagen supera el máximo de 5 MB");
+    if (file.getSize() > maxBytes) throw new IllegalArgumentException("La imagen supera el máximo de 10 MB");
     String extension = EXTENSIONS.get(file.getContentType());
     if (extension == null) throw new IllegalArgumentException("Formato no permitido. Usa JPEG, PNG o WebP");
     String filename = UUID.randomUUID() + extension;
@@ -56,4 +56,3 @@ public class FileStorageService {
     catch (IOException ex) { return "application/octet-stream"; }
   }
 }
-

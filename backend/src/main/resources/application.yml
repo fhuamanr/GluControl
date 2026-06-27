@@ -16,8 +16,8 @@ spring:
     enabled: true
   servlet:
     multipart:
-      max-file-size: ${APP_UPLOAD_MAX_SIZE:5MB}
-      max-request-size: ${APP_UPLOAD_MAX_SIZE:5MB}
+      max-file-size: 10MB
+      max-request-size: 10MB
   jackson:
     default-property-inclusion: non_null
 server:
@@ -31,7 +31,7 @@ springdoc:
 app:
   upload:
     directory: ${APP_UPLOAD_DIR:./uploads}
-    max-bytes: ${APP_UPLOAD_MAX_BYTES:5242880}
+    max-bytes: ${APP_UPLOAD_MAX_BYTES:10485760}
   jwt:
     secret: ${APP_JWT_SECRET:development-only-secret-change-me-123456789}
     expiration-hours: ${APP_JWT_EXPIRATION_HOURS:12}

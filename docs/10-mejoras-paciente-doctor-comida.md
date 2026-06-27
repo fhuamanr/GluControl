@@ -49,7 +49,7 @@
 
 - El registro inicia sesión automáticamente para evitar repetir credenciales.
 - Documento y datos clínicos son opcionales en UI; si falta documento, backend genera un identificador interno único.
-- Las imágenes admitidas son JPEG, PNG y WebP, con máximo configurable de 5 MB.
+- Las imágenes admitidas son JPEG, PNG y WebP, con máximo configurable de 10 MB.
 - El médico tiene lectura clínica global y no puede crear pacientes desde su módulo.
 - El seed demo se conserva para facilitar aceptación y se documenta; producción deberá desactivarlo/eliminarlo en una migración operativa si la política lo exige.
 
@@ -61,7 +61,7 @@
 - Los pacientes solo leen/escriben su propio perfil y recursos. Un intento cruzado devuelve HTTP 403.
 - El layout paciente mantiene la navegación inferior móvil y desde 960 px usa sidebar, contenido ancho y dashboard en columnas.
 - Comidas ofrece cámara (`accept="image/*"`, `capture="environment"`), archivo desktop, preview, reemplazo/eliminación y persistencia de URL.
-- Backend valida JPEG/PNG/WebP y 5 MB. Las imágenes usan nombres UUID, se guardan en `/app/uploads`, persisten en `uploads_data` y se sirven por `/api/uploads/{archivo}`.
+- Backend valida JPEG/PNG/WebP y 10 MB. Las imágenes usan nombres UUID, se guardan en `/app/uploads`, persisten en `uploads_data` y se sirven por `/api/uploads/{archivo}`.
 - El entrypoint ajusta el propietario del volumen y ejecuta Java como usuario `app`, no como root.
 - Médico ya no muestra “Nuevo/Añadir paciente”. Lista solo registros `PATIENT` reales, con correo, edad, última glucosa, estado y última actividad.
 - La ficha médica agrega resumen, glucosa, comidas/fotos, medicamentos y alertas mediante endpoints de solo lectura.
@@ -81,8 +81,8 @@
 
 ### Pruebas ejecutadas
 
-- 4/4 Vitest: registro, login/JWT, render médico y comida con foto.
-- 6/6 JUnit: registro transaccional, email duplicado, almacenamiento/tipo de imagen, BCrypt y JWT.
+- 7/7 Vitest: registro, login/JWT, render médico, comida con foto, límite preventivo de 10 MB, error 413 y recuperación ante fallos de subida.
+- 7/7 JUnit: registro transaccional, email duplicado, almacenamiento/límite/tipo de imagen, BCrypt y JWT.
 - Builds Vite y Maven aprobados.
 - PostgreSQL, backend y frontend saludables en Compose.
 - Flujo real verificado: registro de Lucía → medición 117 → comida con PNG → médico la lista → ficha muestra 117, 100% en rango y comida.

@@ -4,6 +4,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import java.time.Instant;
 import java.util.*;
 
@@ -13,6 +14,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ResourceNotFoundException.class) ResponseEntity<ApiError> notFound(ResourceNotFoundException ex) { return error(HttpStatus.NOT_FOUND,ex.getMessage(),null); }
   @ExceptionHandler(IllegalArgumentException.class) ResponseEntity<ApiError> badRequest(IllegalArgumentException ex) { return error(HttpStatus.BAD_REQUEST,ex.getMessage(),null); }
   @ExceptionHandler(AccessDeniedException.class) ResponseEntity<ApiError> forbidden(AccessDeniedException ex) { return error(HttpStatus.FORBIDDEN,ex.getMessage(),null); }
+  @ExceptionHandler(MaxUploadSizeExceededException.class) ResponseEntity<ApiError> uploadTooLarge(MaxUploadSizeExceededException ex) { return error(HttpStatus.PAYLOAD_TOO_LARGE,"La imagen es demasiado pesada. Usa una imagen menor a 10 MB.",null); }
   @ExceptionHandler(MethodArgumentNotValidException.class) ResponseEntity<ApiError> validation(MethodArgumentNotValidException ex) {
     Map<String,String> fields=new LinkedHashMap<>(); ex.getBindingResult().getFieldErrors().forEach(e->fields.put(e.getField(),e.getDefaultMessage()));
     return error(HttpStatus.UNPROCESSABLE_ENTITY,"Revisa los campos enviados",fields);

@@ -4,6 +4,7 @@ import {BrowserRouter} from 'react-router-dom';
 import App from './App';
 
 const jsonResponse=data=>Promise.resolve({ok:true,status:200,json:()=>Promise.resolve(data)});
+const errorResponse=(status,data={})=>Promise.resolve({ok:false,status,json:()=>Promise.resolve(data)});
 
 afterEach(()=>{cleanup();localStorage.clear();vi.restoreAllMocks();window.history.pushState({},'', '/login')});
 
@@ -68,5 +69,53 @@ describe('GluControl por rol',()=>{
     await waitFor(()=>expect(fetchMock).toHaveBeenCalledTimes(4));
     expect(fetchMock.mock.calls[1][1].body).toBeInstanceOf(FormData);
     expect(JSON.parse(fetchMock.mock.calls[2][1].body).photoUrl).toBe('/api/uploads/plato.jpg');
+  });
+
+  it('bloquea una imagen mayor a 10 MB antes de enviarla',async()=>{
+    localStorage.setItem('glucontrol-session',JSON.stringify({userId:1,patientId:1,fullName:'Javier Mendoza',role:'PATIENT',token:'jwt-paciente'}));
+    window.history.pushState({},'', '/meals');
+    const fetchMock=vi.spyOn(globalThis,'fetch').mockImplementationOnce(()=>jsonResponse({content:[]}));
+    render(<BrowserRouter><App/></BrowserRouter>);
+    expect(await screen.findByRole('heading',{name:'Alimentación'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Agregar comida'}));
+    const file=new File(['imagen'],'enorme.jpg',{type:'image/jpeg'});
+    Object.defineProperty(file,'size',{value:10*1024*1024+1});
+    fireEvent.change(screen.getByLabelText('Subir imagen'),{target:{files:[file]}});
+    expect(screen.getByText('La imagen es demasiado pesada. Usa una imagen menor a 10 MB.')).toBeInTheDocument();
+    expect(screen.queryByAltText('Vista previa del plato')).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('muestra el mensaje 413 y restaura el botón después de fallar la subida',async()=>{
+    localStorage.setItem('glucontrol-session',JSON.stringify({userId:1,patientId:1,fullName:'Javier Mendoza',role:'PATIENT',token:'jwt-paciente'}));
+    window.history.pushState({},'', '/meals');
+    vi.spyOn(globalThis,'fetch')
+      .mockImplementationOnce(()=>jsonResponse({content:[]}))
+      .mockImplementationOnce(()=>errorResponse(413));
+    render(<BrowserRouter><App/></BrowserRouter>);
+    expect(await screen.findByRole('heading',{name:'Alimentación'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Agregar comida'}));
+    fireEvent.change(screen.getByLabelText('Nombre del plato'),{target:{value:'Ensalada'}});
+    fireEvent.change(screen.getByLabelText('Subir imagen'),{target:{files:[new File(['imagen'],'plato.jpg',{type:'image/jpeg'})]}});
+    fireEvent.click(screen.getByRole('button',{name:'Guardar alimento'}));
+    expect(await screen.findByText('La imagen es demasiado pesada. Usa una imagen menor a 10 MB.')).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Guardar alimento'})).toBeEnabled();
+    expect(screen.getByAltText('Vista previa del plato')).toBeInTheDocument();
+  });
+
+  it('muestra un mensaje claro y restaura el botón ante otro error de subida',async()=>{
+    localStorage.setItem('glucontrol-session',JSON.stringify({userId:1,patientId:1,fullName:'Javier Mendoza',role:'PATIENT',token:'jwt-paciente'}));
+    window.history.pushState({},'', '/meals');
+    vi.spyOn(globalThis,'fetch')
+      .mockImplementationOnce(()=>jsonResponse({content:[]}))
+      .mockImplementationOnce(()=>errorResponse(502));
+    render(<BrowserRouter><App/></BrowserRouter>);
+    expect(await screen.findByRole('heading',{name:'Alimentación'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Agregar comida'}));
+    fireEvent.change(screen.getByLabelText('Nombre del plato'),{target:{value:'Cena'}});
+    fireEvent.change(screen.getByLabelText('Subir imagen'),{target:{files:[new File(['imagen'],'plato.jpg',{type:'image/jpeg'})]}});
+    fireEvent.click(screen.getByRole('button',{name:'Guardar alimento'}));
+    expect(await screen.findByText('No se pudo subir la imagen. Verifica que pese menos de 10 MB e inténtalo nuevamente.')).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Guardar alimento'})).toBeEnabled();
   });
 });
