@@ -1,0 +1,8 @@
+const BASE=(import.meta.env.VITE_API_URL||'/api').replace(/\/$/,'');
+export async function api(path,options={}){
+  const token=JSON.parse(localStorage.getItem('glucontrol-session')||'{}').token;
+  const response=await fetch(`${BASE}${path}`,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...(options.headers||{})}});
+  if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.message||`Error ${response.status}`)}
+  return response.status===204?null:response.json();
+}
+export const patientId=()=>JSON.parse(localStorage.getItem('glucontrol-session')||'{}').patientId||1;

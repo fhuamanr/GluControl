@@ -1,0 +1,11 @@
+.env
+.idea/
+.vscode/
+frontend/node_modules/
+frontend/dist/
+backend/target/
+.npm-cache/
+*.log
+tmp-figma-*.jpg
+tmp-figma-*.png
+Figma/
